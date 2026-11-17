@@ -1,0 +1,308 @@
+@startuml class-diagram
+skinparam defaultFontName DejaVu Sans
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #FDF6E3
+  BorderColor #586E75
+}
+skinparam nodesep 40
+skinparam ranksep 60
+hide empty members
+title Діаграма класів — Система керування контентом мобільного оператора (Laravel MVC)
+
+package "Models (Eloquent)" {
+
+  abstract class User {
+    +id: int
+    +name: string
+    +email: string
+    #password: string
+    +isActive: bool
+    +createdAt: DateTime
+    +login(email: string, password: string): bool
+    +logout(): void
+    +hasRole(slug: string): bool
+    +updateProfile(data: array): bool
+    +deactivate(): void
+  }
+
+  class Subscriber {
+    +phoneNumber: string
+    +balance: float
+    +tariffId: int
+    +region: string
+    +notificationsEnabled: bool
+    +subscribe(service: Service): Subscription
+    +unsubscribe(subscription: Subscription): bool
+    +changeTariff(tariff: Tariff): bool
+    +topUp(amount: float): float
+    +activeSubscriptions(): Collection
+  }
+
+  class Editor {
+    +department: string
+    +position: string
+    +publishedCount: int
+    +canPublish: bool
+    +lastActivityAt: DateTime
+    +createContent(data: array): ContentItem
+    +editContent(item: ContentItem, data: array): bool
+    +submitForReview(item: ContentItem): void
+    +uploadMedia(file: UploadedFile): MediaFile
+    +myDrafts(): Collection
+  }
+
+  class Administrator {
+    +accessLevel: int
+    +twoFactorEnabled: bool
+    +lastAuditAt: DateTime
+    +ipWhitelist: array
+    +canManageUsers: bool
+    +approve(item: ContentItem): bool
+    +reject(item: ContentItem, comment: string): bool
+    +assignRole(user: User, role: Role): void
+    +blockUser(user: User): void
+    +generateReport(type: string, from: Date, to: Date): Report
+  }
+
+  class Role {
+    +id: int
+    +name: string
+    +slug: string
+    +description: string
+    +permissions: array
+    +grant(permission: string): void
+    +revoke(permission: string): void
+    +allows(permission: string): bool
+    +users(): Collection
+    +isSystem(): bool
+  }
+
+  class Category {
+    +id: int
+    +name: string
+    +slug: string
+    +parentId: int
+    +sortOrder: int
+    +parent(): Category
+    +children(): Collection
+    +contentItems(): Collection
+    +moveTo(parent: Category): void
+    +isRoot(): bool
+  }
+
+  abstract class ContentItem {
+    +id: int
+    +title: string
+    +slug: string
+    +body: text
+    +status: string
+    +publishedAt: DateTime
+    +viewsCount: int
+    +publish(): bool
+    +unpublish(): bool
+    +schedule(at: DateTime): void
+    +attachMedia(file: MediaFile): void
+    +incrementViews(): int
+  }
+
+  class News {
+    +summary: string
+    +isPinned: bool
+    +source: string
+    +tags: array
+    +region: string
+    +pin(): void
+    +unpin(): void
+    +addTag(tag: string): void
+    +related(limit: int): Collection
+    +toRss(): string
+  }
+
+  class Promotion {
+    +startsAt: DateTime
+    +endsAt: DateTime
+    +discountPercent: float
+    +promoCode: string
+    +targetSegment: string
+    +isActive(): bool
+    +applyTo(tariff: Tariff): float
+    +extend(days: int): void
+    +notifySubscribers(): int
+    +conversionRate(): float
+  }
+
+  class Revision {
+    +id: int
+    +contentItemId: int
+    +editorId: int
+    +body: text
+    +note: string
+    +createdAt: DateTime
+    +restore(): bool
+    +diff(other: Revision): string
+    +author(): Editor
+    +isLatest(): bool
+    +content(): ContentItem
+  }
+
+  class MediaFile {
+    +id: int
+    +fileName: string
+    +path: string
+    +mimeType: string
+    +size: int
+    +altText: string
+    +url(): string
+    +isImage(): bool
+    +resize(width: int, height: int): MediaFile
+    +delete(): bool
+    +usages(): Collection
+  }
+
+  class Tariff {
+    +id: int
+    +name: string
+    +monthlyFee: float
+    +dataLimitGb: int
+    +minutes: int
+    +sms: int
+    +isArchived: bool
+    +archive(): void
+    +price(withPromo: bool): float
+    +compareWith(other: Tariff): array
+    +availableServices(): Collection
+    +subscribersCount(): int
+  }
+
+  class Service {
+    +id: int
+    +code: string
+    +name: string
+    +description: string
+    +price: float
+    +isActive: bool
+    +activate(): void
+    +deactivate(): void
+    +isCompatibleWith(tariff: Tariff): bool
+    +subscriptions(): Collection
+    +monthlyRevenue(): float
+  }
+
+  class Subscription {
+    +id: int
+    +subscriberId: int
+    +serviceId: int
+    +startedAt: DateTime
+    +endsAt: DateTime
+    +status: string
+    +activate(): bool
+    +cancel(reason: string): bool
+    +renew(months: int): void
+    +isExpired(): bool
+    +cost(): float
+  }
+}
+
+package "Controllers" {
+
+  abstract class Controller {
+    #request: Request
+    #middleware: array
+    #perPage: int
+    #validator: Validator
+    #user: User
+    #authorize(ability: string, model: Model): void
+    #validate(request: Request, rules: array): array
+    #respond(data: mixed, status: int): Response
+    #redirectBack(message: string): RedirectResponse
+    #paginate(query: Builder): Paginator
+  }
+
+  class ContentController {
+    -categories: Collection
+    -allowedStatuses: array
+    -cacheTtl: int
+    -defaultSort: string
+    -uploadDisk: string
+    +index(request: Request): View
+    +create(): View
+    +store(request: Request): RedirectResponse
+    +update(request: Request, id: int): RedirectResponse
+    +publish(id: int): RedirectResponse
+    +destroy(id: int): RedirectResponse
+  }
+
+  class TariffController {
+    -compareLimit: int
+    -currency: string
+    -cacheTtl: int
+    -showArchived: bool
+    -sortField: string
+    +index(): View
+    +show(id: int): View
+    +compare(request: Request): View
+    +store(request: Request): RedirectResponse
+    +update(request: Request, id: int): RedirectResponse
+  }
+
+  class SubscriptionController {
+    -smsGateway: SmsGateway
+    -maxActive: int
+    -confirmationTtl: int
+    -defaultPeriod: int
+    -auditLog: Logger
+    +index(): View
+    +store(request: Request, serviceId: int): RedirectResponse
+    +confirm(code: string): RedirectResponse
+    +cancel(id: int): RedirectResponse
+    +history(): View
+  }
+
+  class ReportController {
+    -exportFormats: array
+    -dateFrom: Date
+    -dateTo: Date
+    -chartBuilder: ChartBuilder
+    -storageDisk: string
+    +index(): View
+    +contentReport(request: Request): View
+    +subscriptionsReport(request: Request): View
+    +viewsChart(request: Request): JsonResponse
+    +export(type: string, format: string): Response
+  }
+}
+
+' ===== Наслідування =====
+Subscriber --|> User
+Editor --|> User
+Administrator --|> Editor
+News --|> ContentItem
+Promotion --|> ContentItem
+ContentController --|> Controller
+TariffController --|> Controller
+SubscriptionController --|> Controller
+ReportController --|> Controller
+
+' ===== Композиція =====
+ContentItem "1" *-- "1..*" Revision : має історію версій
+
+' ===== Агрегація =====
+ContentItem "0..*" o-- "0..*" MediaFile : містить
+Category "1" o-- "0..*" ContentItem : групує
+Tariff "0..*" o-- "0..*" Service : включає
+
+' ===== Асоціація =====
+User "0..*" --> "1" Role : має роль
+Editor "1" --> "0..*" ContentItem : створює
+Subscriber "0..*" --> "1" Tariff : користується
+Subscriber "1" --> "0..*" Subscription : оформлює
+Subscription "0..*" --> "1" Service : на послугу
+Promotion "0..*" --> "0..*" Tariff : діє для
+
+ContentController ..> ContentItem : керує
+TariffController ..> Tariff : керує
+SubscriptionController ..> Subscription : керує
+ReportController ..> Subscription : аналізує
+ReportController ..> ContentItem : аналізує
+@enduml

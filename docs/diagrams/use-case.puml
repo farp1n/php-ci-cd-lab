@@ -1,0 +1,71 @@
+@startuml use-case
+skinparam defaultFontName DejaVu Sans
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #FDF6E3
+  BorderColor #586E75
+}
+skinparam actorStyle awesome
+left to right direction
+title Діаграма варіантів використання — Система керування контентом мобільного оператора
+
+actor "Абонент" as Subscriber
+actor "Контент-менеджер" as Editor
+actor "Адміністратор" as Admin
+actor "SMS/Push-шлюз" as Gateway <<system>>
+
+rectangle "CMS мобільного оператора" {
+  package "Сервіси для абонента" {
+    usecase "Переглянути тарифи\nта послуги" as UC_ViewTariffs
+    usecase "Порівняти тарифи" as UC_Compare
+    usecase "Знайти контент" as UC_Search
+    usecase "Знайти за категорією" as UC_SearchCat
+    usecase "Знайти за ключовим словом" as UC_SearchKw
+    usecase "Підключити послугу" as UC_Subscribe
+  }
+  usecase "Авторизуватися" as UC_Login
+  package "Керування контентом" {
+    usecase "Опублікувати\nконтент-матеріал" as UC_Publish
+    usecase "Завантажити медіафайл" as UC_Upload
+    usecase "Запланувати публікацію" as UC_Schedule
+    usecase "Редагувати тариф" as UC_EditTariff
+    usecase "Створити розсилку\nпро акцію" as UC_Campaign
+  }
+  package "Адміністрування" {
+    usecase "Керувати користувачами\nта ролями" as UC_Users
+    usecase "Модерувати контент" as UC_Moderate
+    usecase "Відхилити матеріал\nз коментарем" as UC_Reject
+    usecase "Сформувати звіт" as UC_Report
+    usecase "Експортувати звіт\nу CSV/PDF" as UC_Export
+  }
+}
+
+' асоціації
+UC_ViewTariffs -- Subscriber
+UC_Search -- Subscriber
+UC_Subscribe -- Subscriber
+Editor --> UC_Publish
+Editor --> UC_EditTariff
+Editor --> UC_Campaign
+Admin --> UC_Users
+Admin --> UC_Moderate
+Admin --> UC_Report
+UC_Campaign --> Gateway
+
+' узагальнення акторів та варіантів використання
+Admin -up-|> Editor
+UC_SearchCat --|> UC_Search
+UC_SearchKw --|> UC_Search
+
+' include
+UC_Subscribe ..> UC_Login : <<include>>
+UC_Publish ..> UC_Login : <<include>>
+UC_Users ..> UC_Login : <<include>>
+UC_Publish ..> UC_Upload : <<include>>
+
+' extend
+UC_Compare ..> UC_ViewTariffs : <<extend>>
+UC_Schedule ..> UC_Publish : <<extend>>
+UC_Reject ..> UC_Moderate : <<extend>>
+UC_Export ..> UC_Report : <<extend>>
+@enduml
